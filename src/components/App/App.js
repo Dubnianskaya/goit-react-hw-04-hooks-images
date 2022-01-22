@@ -1,4 +1,4 @@
-import React, { Component } from "react";
+import { useState, useEffect, memo } from "react";
 import { Container, Notifications } from "./App.styled";
 import Searchbar from "../Searchbar";
 import ImageGallery from "../ImageGallery";
@@ -10,91 +10,69 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import "react-loader-spinner/dist/loader/css/react-spinner-loader.css";
 
-class App extends Component {
-  state = {
-    imageForSeach: "",
-    images: [],
-    status: "idle",
-    page: 1,
-    largeImg: "",
-  };
+function App() {
+  const [query, setQuery] = useState("");
+  const [images, setImages] = useState([]);
+  const [status, setStatus] = useState("idle");
+  const [page, setPage] = useState(1);
+  const [largeImg, setLargeImg] = useState("");
 
-  componentDidUpdate(prevProps, prevState) {
-    if (
-      prevState.imageForSeach !== this.state.imageForSeach ||
-      prevState.page !== this.state.page
-    ) {
-      this.fetchHits();
+  useEffect(() => {
+    if (!query) {
+      return;
     }
-  }
+    setStatus("pending");
 
-  handleFormSubmit = (imageName) => {
-    this.setState({ imageForSeach: imageName, page: 1, images: [] });
-  };
-
-  fetchHits = () => {
-    const { imageForSeach, page } = this.state;
-    this.setState({ status: "pending" });
-
-    fetchArticles(page, imageForSeach).then((images) => {
+    fetchArticles(page, query).then((images) => {
       if (images.totalHits !== 0) {
-        return this.setState((prevState) => ({
-          images: [...prevState.images, ...images.hits],
-          status: "resolved",
-        }));
+        setImages((prevState) => [...prevState, ...images.hits]);
+        setStatus("resolved");
+        return;
       }
-      return this.setState({ status: "rejected" });
+      return setStatus("rejected");
     });
+  }, [query, page]);
+
+  const handleFormSubmit = (imageName) => {
+    setQuery(imageName);
+    setPage(1);
+    setImages([]);
   };
 
-  onLoadMore = () => {
-    this.setState((prevState) => ({
-      page: prevState.page + 1,
-    }));
-
-    window.scrollTo({
-      top: document.documentElement.scrollHeight,
-      behavior: "smooth",
-    });
+  const onLoadMore = () => {
+    setPage((prevState) => prevState + 1);
   };
 
-  closeModal = () => {
-    this.setState({ largeImg: "" });
+  const closeModal = () => {
+    setLargeImg("");
   };
 
-  onLargeImageOpen = (largeImage) => {
-    this.setState({ largeImg: largeImage });
-  };
-
-  render() {
-    const { images, status, largeImg, page } = this.state;
-    return (
-      <Container>
-        <Searchbar onSubmitForm={this.handleFormSubmit} />
-        <ToastContainer />
-        {status === "idle" && (
-          <Notifications>Enter an image search query!</Notifications>
-        )}
-        {status === "pending" && page > 1 && (
-          <>
-            <ImageGallery images={images} onModalShow={this.onLargeImageOpen} />
-            <Loader />
-          </>
-        )}
-        {status === "pending" && <Loader />}
-        {status === "rejected" && (
-          <Notifications>Images by your query are not founded :(</Notifications>
-        )}
-        {status === "resolved" && (
-          <>
-            <ImageGallery images={images} onModalShow={this.onLargeImageOpen} />
-            <Button onLoadMore={this.onLoadMore} />
-          </>
-        )}
-        {largeImg && <Modal image={largeImg} onClose={this.closeModal}></Modal>}
-      </Container>
-    );
-  }
+  return (
+    <Container>
+      <Searchbar onSubmitForm={handleFormSubmit} />
+      <ToastContainer />
+      {status === "idle" && (
+        <Notifications>Enter an image search query!</Notifications>
+      )}
+      {status === "pending" && page > 1 && (
+        <>
+          <ImageGallery images={images} onModalShow={setLargeImg} />
+          <Loader />
+        </>
+      )}
+      {status === "pending" && <Loader />}
+      {status === "rejected" && (
+        <Notifications>Images by your query are not founded :(</Notifications>
+      )}
+      {status === "resolved" && (
+        <>
+          <ImageGallery images={images} onModalShow={setLargeImg} />
+          <Button onLoadMore={onLoadMore} />
+        </>
+      )}
+      {largeImg && <Modal image={largeImg} onClose={closeModal}></Modal>}
+    </Container>
+  );
 }
 
-export default App;
+export default memo(App);
